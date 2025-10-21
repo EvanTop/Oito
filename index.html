@@ -3,7 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OOO.PLUS for sale</title>
+<meta name="description" content="Oi.to - 一个简洁的个人引导/停靠页，带有流畅的波浪点阵背景与文字扰动动画。">
+<meta name="theme-color" content="#000000">
+<title>Oi.to</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@100&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 <style>
 #wrap {
@@ -91,6 +96,10 @@
     right: 0;
     bottom: 0;
     z-index: 1;
+    /* 优雅降级：当 WebGL 不可用或关闭动画时，显示柔和的渐变背景 */
+    background: radial-gradient(1200px 800px at 20% 20%, rgba(0, 120, 255, 0.12), transparent 60%),
+                radial-gradient(1000px 700px at 80% 70%, rgba(0, 255, 200, 0.10), transparent 55%),
+                linear-gradient(180deg, #050505 0%, #000 100%);
 }
 
 @media (max-width: 768px) {
@@ -106,31 +115,36 @@
     .buttons { gap: 15px; }
     .buttons a { font-size: 12px; }
 }
+
+/* 减少动态偏好时的轻量样式 */
+@media (prefers-reduced-motion: reduce) {
+    .dud { display: none; }
+}
 </style>
 </head>
 
 <body>
-<div class="waves"></div>
+<div class="waves" aria-hidden="true"></div>
 
-<div id="wrap">
+<div id="wrap" role="main">
     <div class="container">
         <div class="text">Hi,</div>
     </div>
     <div class="spacer"></div>
-    <div class="buttons">
-        <a href="https://evan.xin" target="_blank" rel="noopener">Space</a>
-        <a href="https://evan.plus" target="_blank" rel="noopener">Nav</a>
-        <a href="https://evanmi.top" target="_blank" rel="noopener">Domain</a>
-    </div>
+    <nav class="buttons" aria-label="Primary">
+        <a href="https://evan.xin" target="_blank" rel="noopener noreferrer" aria-label="个人空间 Evan.Xin">Space</a>
+        <a href="https://evan.plus" target="_blank" rel="noopener noreferrer" aria-label="导航站 Evan.Plus">Nav</a>
+        <a href="https://evanmi.top" target="_blank" rel="noopener noreferrer" aria-label="域名与作品 EvanMi.Top">Domain</a>
+    </nav>
 </div>
 
 <div class="logo">
-    <img src="logo.png" alt="Logo">
+    <img src="logo.png" alt="Oito Logo" loading="lazy" decoding="async">
 </div>
 
-<div class="footer">
+<footer class="footer">
     © 2025 EvanMi.Top All rights reserved.
-</div>
+</footer>
 
 <script src="main.js"></script>
 <script>
@@ -198,8 +212,8 @@ class ShaderProgram {
         gl.enable(gl.BLEND); gl.enable(gl.CULL_FACE); gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
         gl[options.depthTest ? 'enable' : 'disable'](gl.DEPTH_TEST);
 
-        if (options.autosize) window.addEventListener('resize', e => this.resize(e), false);
-        if (options.mousemove) window.addEventListener('mousemove', e => this.mousemove(e), false);
+        if (options.autosize) window.addEventListener('resize', e => this.resize(e), { passive: true });
+        if (options.mousemove) window.addEventListener('mousemove', e => this.mousemove(e), { passive: true });
 
         this.resize();
         this.update = this.update.bind(this);
@@ -220,7 +234,7 @@ class ShaderProgram {
         const width = this.width = holder.offsetWidth;
         const height = this.height = holder.offsetHeight;
         const aspect = this.aspect = width / height;
-        const dpi = this.dpi = devicePixelRatio;
+        const dpi = this.dpi = Math.min(window.devicePixelRatio || 1, 2);
 
         canvas.width = width * dpi;
         canvas.height = height * dpi;
@@ -267,7 +281,7 @@ class ShaderProgram {
         gl.shaderSource(shader, source);
         gl.compileShader(shader);
         if (gl.getShaderParameter(shader, gl.COMPILE_STATUS)) return shader;
-        console.log(gl.getShaderInfoLog(shader));
+        console.error(gl.getShaderInfoLog(shader));
         gl.deleteShader(shader);
     }
 
@@ -283,7 +297,7 @@ class ShaderProgram {
             gl.useProgram(program);
             this.program = program;
         } else {
-            console.log(gl.getProgramInfoLog(program));
+            console.error(gl.getProgramInfoLog(program));
             gl.deleteProgram(program);
         }
     }
@@ -322,7 +336,6 @@ class ShaderProgram {
     }
 
     updateUniforms() {
-        const gl = this.gl;
         const uniforms = this.data.uniforms;
         Object.keys(uniforms).forEach(name => {
             const uniform = uniforms[name];
@@ -362,15 +375,16 @@ class ShaderProgram {
     setBuffer(name, data) {
         const gl = this.gl;
         const buffers = this.data.buffers;
-        if (name == null && !gl.bindBuffer(gl.ARRAY_BUFFER, null)) return;
+        if (name == null) { gl.bindBuffer(gl.ARRAY_BUFFER, null); return; }
         gl.bindBuffer(gl.ARRAY_BUFFER, buffers[name].buffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
     }
 
     updateBuffers() {
-        const gl = this.gl;
-        const buffers = this.buffers;
-        Object.keys(buffers).forEach(name => buffers[name] = buffer.data);
+        const src = this.data.buffers;
+        Object.keys(src).forEach(name => {
+            this.buffers[name] = src[name].data;
+        });
         this.setBuffer(null);
     }
 
@@ -418,59 +432,69 @@ class ShaderProgram {
 }
 
 const pointSize = 2.5;
-const waves = new ShaderProgram(document.querySelector('.waves'), {
-    texture: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAb1BMVEUAAAD///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8v0wLRAAAAJHRSTlMAC/goGvDhmwcExrVjWzrm29TRqqSKenRXVklANSIUE8mRkGpv+HOfAAABCElEQVQ4y4VT13LDMAwLrUHteO+R9f/fWMfO6dLaPeKVEECRxOULWsEGpS9nULDwia2Y+ALqUNbAWeg775zv+sA4/FFRMxt8U2FZFCVWjR/YrH4/H9sarclSKdPMWKzb8VsEeHB3m0shkhVCyNzeXeAQ9Xl4opEieX2QCGnwGbj6GMyjw9t1K0fK9YZunPXeAGsfJtYjwzxaBnozGGorYz0ypK2HzQSYx1y8DgSRo2ewOiyh2QWOEk1Y9OrQV0a8TiBM1a8eMHWYnRMy7CZ4t1CmyRkhSUvP3gRXyHOCLBxNoC3IJv//ZrJ/kxxUHPUB+6jJZZHrpg6GOjnqaOmzp4NDR48OLxn/H27SRQ08S0ZJAAAAAElFTkSuQmCC',
-    uniforms: {
-        size: { type: 'float', value: pointSize },
-        field: { type: 'vec3', value: [0, 0, 0] },
-        speed: { type: 'float', value: 5 },
-    },
-    vertex: `
-        #define M_PI 3.1415926535897932384626433832795
-        precision highp float;
-        attribute vec4 a_position;
-        attribute vec4 a_color;
-        uniform float u_time;
-        uniform float u_size;
-        uniform float u_speed;
-        uniform vec3 u_field;
-        uniform mat4 u_projection;
-        varying vec4 v_color;
-        void main() {
-            vec3 pos = a_position.xyz;
-            pos.y += (
-                cos(pos.x / u_field.x * M_PI * 8.0 + u_time * u_speed) +
-                sin(pos.z / u_field.z * M_PI * 8.0 + u_time * u_speed)
-            ) * u_field.y;
-            gl_Position = u_projection * vec4(pos.xyz, a_position.w);
-            gl_PointSize = (u_size / gl_Position.w) * 100.0;
-            v_color = a_color;
-        }`,
-    fragment: `
-        precision highp float;
-        uniform sampler2D u_texture;
-        varying vec4 v_color;
-        void main() {
-            gl_FragColor = v_color * texture2D(u_texture, gl_PointCoord);
-        }`,
-    onResize(w, h, dpi) {
-        const position = [], color = [];
-        const width = 400 * (w / h);
-        const depth = 400;
-        const height = 3;
-        const distance = 5;
-        for (let x = 0; x < width; x += distance) {
-            for (let z = 0; z < depth; z += distance) {
-                position.push(-width / 2 + x, -30, -depth / 2 + z);
-                color.push(0, 1 - (x / width) * 1, 0.5 + x / width * 0.5, z / depth);
+const wavesHolder = document.querySelector('.waves');
+const prefersReduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (!prefersReduceMotion) {
+    const waves = new ShaderProgram(wavesHolder, {
+        texture: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAb1BMVEUAAAD///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////8v0wLRAAAAJHRSTlMAC/goGvDhmwcExrVjWzrm29TRqqSKenRXVklANSIUE8mRkGpv+HOfAAABCElEQVQ4y4VT13LDMAwLrUHteO+R9f/fWMfO6dLaPeKVEECRxOULWsEGpS9nULDwia2Y+ALqUNbAWeg775zv+sA4/FFRMxt8U2FZFCVWjR/YrH4/H9sarclSKdPMWKzb8VsEeHB3m0shkhVCyNzeXeAQ9Xl4opEieX2QCGnwGbj6GMyjw9t1K0fK9YZunPXeAGsfJtYjwzxaBnozGGorYz0ypK2HzQSYx1y8DgSRo2ewOiyh2QWOEk1Y9OrQV0a8TiBM1a8eMHWYnRMy7CZ4t1CmyRkhSUvP3gRXyHOCLBxNoC3IJv//ZrJ/kxxUHPUB+6jJZZHrpg6GOjnqaOmzp4NDR48OLxn/H27SRQ08S0ZJAAAAAElFTkSuQmCC',
+        uniforms: {
+            size: { type: 'float', value: pointSize },
+            field: { type: 'vec3', value: [0, 0, 0] },
+            speed: { type: 'float', value: 5 },
+        },
+        vertex: `
+            #define M_PI 3.1415926535897932384626433832795
+            precision highp float;
+            attribute vec4 a_position;
+            attribute vec4 a_color;
+            uniform float u_time;
+            uniform float u_size;
+            uniform float u_speed;
+            uniform vec3 u_field;
+            uniform mat4 u_projection;
+            varying vec4 v_color;
+            void main() {
+                vec3 pos = a_position.xyz;
+                pos.y += (
+                    cos(pos.x / u_field.x * M_PI * 8.0 + u_time * u_speed) +
+                    sin(pos.z / u_field.z * M_PI * 8.0 + u_time * u_speed)
+                ) * u_field.y;
+                gl_Position = u_projection * vec4(pos.xyz, a_position.w);
+                gl_PointSize = (u_size / gl_Position.w) * 100.0;
+                v_color = a_color;
+            }`,
+        fragment: `
+            precision highp float;
+            uniform sampler2D u_texture;
+            varying vec4 v_color;
+            void main() {
+                gl_FragColor = v_color * texture2D(u_texture, gl_PointCoord);
+            }`,
+        onResize(w, h, dpi) {
+            const position = [], color = [];
+            const width = 400 * (w / h);
+            const depth = 400;
+            const height = 3;
+            const distance = 5;
+            for (let x = 0; x < width; x += distance) {
+                for (let z = 0; z < depth; z += distance) {
+                    position.push(-width / 2 + x, -30, -depth / 2 + z);
+                    color.push(0, 1 - (x / width) * 1, 0.5 + x / width * 0.5, z / depth);
+                }
             }
-        }
-        this.uniforms.field = [width, height, depth];
-        this.buffers.position = position;
-        this.buffers.color = color;
-        this.uniforms.size = (h / 400) * pointSize * dpi;
-    },
-});
+            this.uniforms.field = [width, height, depth];
+            this.buffers.position = position;
+            this.buffers.color = color;
+            this.uniforms.size = (h / 400) * pointSize * dpi;
+        },
+    });
+}
 </script>
+
+<noscript>
+    <div style="position:fixed;bottom:0;left:0;right:0;color:#757575;font:12px 'Roboto Mono', monospace;text-align:center;padding:8px 0;">
+        本页面使用 JavaScript 呈现动画效果，已为无脚本环境提供纯静态降级显示。
+    </div>
+</noscript>
 </body>
 </html>
