@@ -54,27 +54,33 @@ class TextScramble {
 }
 
 const el = document.querySelector('.text');
-const fx = new TextScramble(el);
+const prefersReduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const phrases = [
-  'Hi,',
-  'Everyone',
-  'Welcome to my site!',
-  'How did you end up here?',
-  'That’s really cool.',
-  'Do you like this place?',
-  'Please remember — Oi.to'
-];
+if (prefersReduceMotion) {
+  // 尊重用户的“减少动态”偏好：使用静态文本
+  if (el) el.textContent = 'Hi, Everyone — Welcome to Oi.to';
+} else {
+  const fx = new TextScramble(el);
+  const phrases = [
+    'Hi,',
+    'Everyone',
+    'Welcome to my site!',
+    'How did you end up here?',
+    'That’s really cool.',
+    'Do you like this place?',
+    'Please remember — Oi.to'
+  ];
 
-let counter = 0;
-fx.setText(phrases[0]).then(() => {
-  counter = 1; 
-  setTimeout(next, 800);
-});
-
-function next() {
-  fx.setText(phrases[counter]).then(() => {
+  let counter = 0;
+  fx.setText(phrases[0]).then(() => {
+    counter = 1; 
     setTimeout(next, 800);
   });
-  counter = (counter + 1) % phrases.length;
+
+  function next() {
+    fx.setText(phrases[counter]).then(() => {
+      setTimeout(next, 800);
+    });
+    counter = (counter + 1) % phrases.length;
+  }
 }
